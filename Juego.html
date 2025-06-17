@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Juego de Reflejos Daniel Sanchez</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      background: linear-gradient(270deg, #00f0ff, #ff00f7, #39ff14, #f9ff00);
+      background-size: 800% 800%;
+      animation: bgAnimation 15s ease infinite;
+    }
+
+    @keyframes bgAnimation {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      text-shadow: 0 0 10px #00f0ff;
+    }
+
+    #box {
+      width: 300px;
+      height: 300px;
+      background-color: red;
+      border-radius: 25px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 2rem;
+      font-weight: bold;
+      margin: 20px;
+      cursor: pointer;
+      transition: background-color 0.3s, transform 0.3s;
+      box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+    }
+
+    #message, #levelDisplay {
+      font-size: 1.2rem;
+      margin: 10px;
+      text-align: center;
+      text-shadow: 0 0 5px black;
+    }
+
+    button {
+      padding: 10px 20px;
+      background-color: #00ffcc;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 0 10px #00ffcc;
+    }
+
+    button:hover {
+      background-color: #00ccaa;
+    }
+
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 9999;
+    }
+  </style>
+</head>
+<body>
+  <h1>Juego de Reflejos Daniel S ⚡</h1>
+  <div id="levelDisplay">Nivel: 1</div>
+  <div id="box">¡Espera!</div>
+  <div id="message">Haz clic cuando se ponga verde.</div>
+  <button onclick="startGame()">Reiniciar</button>
+  <canvas id="confettiCanvas"></canvas>
+
+  <script>
+    const box = document.getElementById('box');
+    const message = document.getElementById('message');
+    const levelDisplay = document.getElementById('levelDisplay');
+    const confettiCanvas = document.getElementById('confettiCanvas');
+    const ctx = confettiCanvas.getContext('2d');
+
+    let startTime, endTime, timeout;
+    let gameActive = false;
+    let level = 1;
+    const maxLevels = 50;
+
+    function getMaxReactionTime(level) {
+      return Math.max(250, 1000 - (level - 1) * 12);
+    }
+
+    function startGame() {
+      stopConfetti();
+      resizeCanvas();
+      gameActive = false;
+      box.style.backgroundColor = "red";
+      box.textContent = "¡Espera!";
+      message.textContent = "Haz clic cuando se ponga verde.";
+      levelDisplay.textContent = `Nivel: ${level}`;
+
+      const delay = Math.floor(Math.random() * 2000) + 1000;
+
+      timeout = setTimeout(() => {
+        box.style.backgroundColor = "green";
+        box.textContent = "¡DALE!";
+        startTime = new Date().getTime();
+        gameActive = true;
+      }, delay);
+    }
+
+    box.addEventListener('click', () => {
+      if (!gameActive) {
+        clearTimeout(timeout);
+        message.textContent = "¡Muy pronto! Nivel reiniciado.";
+        level = 1;
+        levelDisplay.textContent = `Nivel: ${level}`;
+        box.style.backgroundColor = "darkred";
+        box.textContent = "Fallaste";
+        return;
+      }
+
+      endTime = new Date().getTime();
+      const reactionTime = endTime - startTime;
+      const maxTime = getMaxReactionTime(level);
+
+      if (reactionTime <= maxTime) {
+        message.textContent = `¡Bien! Tiempo: ${reactionTime} ms ✅`;
+        box.textContent = `${reactionTime} ms`;
+        box.style.backgroundColor = "#00ff99";
+
+        if (level < maxLevels) {
+          level++;
+          setTimeout(startGame, 1500);
+        } else {
+          message.textContent = "🎉 ¡GANASTE! ¡Reflejos de otro nivel!";
+          box.textContent = "🏆";
+          box.style.backgroundColor = "#ffd700";
+          startConfetti();
+        }
+      } else {
+        message.textContent = `Muy lento (${reactionTime} ms). Reiniciando nivel.`;
+        level = 1;
+        levelDisplay.textContent = `Nivel: ${level}`;
+        box.textContent = "Fallaste";
+        box.style.backgroundColor = "orange";
+        setTimeout(startGame, 1500);
+      }
+
+      gameActive = false;
+    });
+
+    // 🎊 Confetti Effect
+    let confetti = [];
+    function startConfetti() {
+      confetti = [];
+      for (let i = 0; i < 100; i++) {
+        confetti.push({
+          x: Math.random() * window.innerWidth,
+          y: Math.random() * window.innerHeight,
+          r: Math.random() * 6 + 4,
+          d: Math.random() * 50,
+          color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+          tilt: Math.random() * 10 - 10,
+          tiltAngleIncrement: Math.random() * 0.1 + 0.05,
+          tiltAngle: 0
+        });
+      }
+      animateConfetti();
+    }
+
+    function animateConfetti() {
+      ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+      confetti.forEach(c => {
+        c.tiltAngle += c.tiltAngleIncrement;
+        c.y += (Math.cos(c.d) + 1 + c.r / 2) / 2;
+        c.x += Math.sin(c.d);
+        c.tilt = Math.sin(c.tiltAngle) * 15;
+
+        ctx.beginPath();
+        ctx.lineWidth = c.r;
+        ctx.strokeStyle = c.color;
+        ctx.moveTo(c.x + c.tilt + c.r / 2, c.y);
+        ctx.lineTo(c.x + c.tilt, c.y + c.tilt + c.r / 2);
+        ctx.stroke();
+      });
+
+      requestAnimationFrame(animateConfetti);
+    }
+
+    function stopConfetti() {
+      confetti = [];
+      ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+    }
+
+    function resizeCanvas() {
+      confettiCanvas.width = window.innerWidth;
+      confettiCanvas.height = window.innerHeight;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Iniciar juego
+    startGame();
+  </script>
+</body>
+</html>
