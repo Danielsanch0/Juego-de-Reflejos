@@ -3,14 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ClickManía DanielSanchez</title>
+  <title>ClickManía Pro</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background-color: #111;
       font-family: 'Segoe UI', sans-serif;
@@ -22,14 +17,7 @@
       height: 100vh;
       padding: 10px;
     }
-
-    h1 {
-      color: #0ff;
-      margin: 10px 0;
-      font-size: 7vw;
-      text-align: center;
-    }
-
+    h1 { color: #0ff; margin: 10px 0; font-size: 7vw; text-align: center; }
     .scoreboard {
       display: flex;
       justify-content: space-around;
@@ -37,7 +25,8 @@
       font-size: 5vw;
       margin-bottom: 10px;
     }
-
+    #lives { display: flex; gap: 5px; }
+    .heart { color: red; font-size: 6vw; }
     #gameArea {
       position: relative;
       width: 100%;
@@ -48,21 +37,25 @@
       overflow: hidden;
       touch-action: none;
     }
-
-    .circle {
+    .circle, .life-heart {
       position: absolute;
       width: 70px;
       height: 70px;
       border-radius: 50%;
-      background: radial-gradient(circle, #ff0, #f00);
-      box-shadow: 0 0 20px #f00;
+      cursor: pointer;
       transition: transform 0.1s;
     }
-
-    .circle:active {
+    .circle {
+      background: radial-gradient(circle, #ff0, #f00);
+      box-shadow: 0 0 20px #f00;
+    }
+    .life-heart {
+      background: radial-gradient(circle, #ff69b4, #ff1493);
+      box-shadow: 0 0 20px #ff69b4;
+    }
+    .circle:active, .life-heart:active {
       transform: scale(1.3);
     }
-
     #gameOver {
       display: none;
       font-size: 6vw;
@@ -70,7 +63,6 @@
       color: #f33;
       margin-top: 10px;
     }
-
     button {
       margin-top: 10px;
       padding: 10px 20px;
@@ -81,24 +73,30 @@
       color: #111;
       cursor: pointer;
     }
-
     button:active {
       background-color: #0cf;
     }
   </style>
 </head>
 <body>
-  <h1>🎯 ClickManía Daniel S.</h1>
+  <h1>🎯 ClickManía Pro</h1>
   <div class="scoreboard">
     <div>Puntos: <span id="score">0</span></div>
-    <div>Vidas: <span id="lives">3</span></div>
+    <div id="lives"></div>
   </div>
   <div id="gameArea"></div>
   <div id="gameOver">
     ¡Juego terminado!<br>
     <strong>Puntaje final:</strong> <span id="finalScore">0</span><br>
+    🏆 Récord: <span id="highScore">0</span><br>
     <button onclick="startGame()">Jugar de nuevo</button>
   </div>
+
+  <!-- 🎵 Sonidos desde CDN -->
+  <audio id="clickSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_46b2e85552.mp3" preload="auto"></audio>
+  <audio id="failSound" src="https://cdn.pixabay.com/download/audio/2022/02/23/audio_44283f0d71.mp3" preload="auto"></audio>
+  <audio id="lifeSound" src="https://cdn.pixabay.com/download/audio/2022/03/08/audio_14ef5a65db.mp3" preload="auto"></audio>
+  <audio id="endSound" src="https://cdn.pixabay.com/download/audio/2022/03/11/audio_47d5443174.mp3" preload="auto"></audio>
 
   <script>
     const gameArea = document.getElementById('gameArea');
@@ -106,11 +104,28 @@
     const livesDisplay = document.getElementById('lives');
     const gameOverText = document.getElementById('gameOver');
     const finalScore = document.getElementById('finalScore');
+    const highScoreDisplay = document.getElementById('highScore');
+
+    const clickSound = document.getElementById('clickSound');
+    const failSound = document.getElementById('failSound');
+    const lifeSound = document.getElementById('lifeSound');
+    const endSound = document.getElementById('endSound');
 
     let score = 0;
     let lives = 3;
     let playing = true;
     let interval;
+    let intervalTime = 900;
+
+    function updateLivesDisplay() {
+      livesDisplay.innerHTML = '';
+      for (let i = 0; i < lives; i++) {
+        const heart = document.createElement('span');
+        heart.className = 'heart';
+        heart.innerHTML = '❤️';
+        livesDisplay.appendChild(heart);
+      }
+    }
 
     function randomPosition(max) {
       return Math.floor(Math.random() * max);
@@ -131,7 +146,13 @@
       circle.addEventListener('touchstart', () => {
         score++;
         scoreDisplay.textContent = score;
+        clickSound.play();
         circle.remove();
+
+        // Cada 50 puntos => vida
+        if (score % 50 === 0) createLifeHeart();
+
+        adjustDifficulty();
       });
 
       gameArea.appendChild(circle);
@@ -140,37 +161,88 @@
         if (gameArea.contains(circle)) {
           circle.remove();
           lives--;
-          livesDisplay.textContent = lives;
-          if (lives <= 0) {
-            endGame();
-          }
+          updateLivesDisplay();
+          failSound.play();
+          if (lives <= 0) endGame();
         }
-      }, 1000); // tiempo límite para hacer clic
+      }, 1000);
+    }
+
+    function createLifeHeart() {
+      const life = document.createElement('div');
+      life.classList.add('life-heart');
+
+      const x = randomPosition(gameArea.clientWidth - 70);
+      const y = randomPosition(gameArea.clientHeight - 70);
+      life.style.left = `${x}px`;
+      life.style.top = `${y}px`;
+
+      life.addEventListener('touchstart', () => {
+        lives++;
+        updateLivesDisplay();
+        lifeSound.play();
+        life.remove();
+      });
+
+      gameArea.appendChild(life);
+
+      setTimeout(() => {
+        if (gameArea.contains(life)) {
+          life.remove();
+        }
+      }, 3000);
+    }
+
+    function adjustDifficulty() {
+      clearInterval(interval);
+      // Aumenta dificultad cada 20 puntos
+      if (score % 20 === 0 && intervalTime > 300) {
+        intervalTime -= 50;
+      }
+      interval = setInterval(() => {
+        createCircle();
+      }, intervalTime);
     }
 
     function startGame() {
       score = 0;
       lives = 3;
+      intervalTime = 900;
       playing = true;
       scoreDisplay.textContent = score;
-      livesDisplay.textContent = lives;
       gameOverText.style.display = 'none';
       gameArea.innerHTML = '';
+      updateLivesDisplay();
 
       interval = setInterval(() => {
         createCircle();
-      }, 900); // ajustado para móvil
+      }, intervalTime);
     }
 
     function endGame() {
       playing = false;
       clearInterval(interval);
+      endSound.play();
       finalScore.textContent = score;
+
+      // Guardar récord
+      const record = parseInt(localStorage.getItem('highScore')) || 0;
+      if (score > record) {
+        localStorage.setItem('highScore', score);
+        highScoreDisplay.textContent = score;
+      } else {
+        highScoreDisplay.textContent = record;
+      }
+
       gameOverText.style.display = 'block';
       gameArea.innerHTML = '';
     }
 
-    startGame();
+    // Mostrar récord al cargar
+    window.onload = () => {
+      highScoreDisplay.textContent = localStorage.getItem('highScore') || 0;
+      startGame();
+    };
   </script>
 </body>
 </html>
